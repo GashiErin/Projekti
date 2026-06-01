@@ -1,0 +1,119 @@
+-- =========================
+-- USERS & ROLES (SECURITY)
+-- =========================
+CREATE DATABASE warehouse_db;
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    enabled BOOLEAN DEFAULT TRUE
+);
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE
+);
+CREATE TABLE user_roles (
+    user_id INT NOT NULL,
+    role_id INT NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    CONSTRAINT fk_user_roles_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_roles_role
+        FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+-- =========================
+-- MASTER DATA
+-- =========================
+CREATE TABLE suppliers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    phone VARCHAR(50),
+    email VARCHAR(150)
+);
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    supplier_id INT NOT NULL,
+    category_id INT NOT NULL,
+    CONSTRAINT fk_products_supplier
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    CONSTRAINT fk_products_category
+        FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+-- =========================
+-- WAREHOUSE & STOCK
+-- =========================
+CREATE TABLE warehouse (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    location VARCHAR(200)
+);
+CREATE TABLE stock (
+    id SERIAL PRIMARY KEY,
+    quantity INT NOT NULL,
+    min_quantity INT DEFAULT 0,
+    product_id INT NOT NULL,
+    warehouse_id INT NOT NULL,
+    CONSTRAINT fk_stock_product
+        FOREIGN KEY (product_id) REFERENCES products(id),
+    CONSTRAINT fk_stock_warehouse
+        FOREIGN KEY (warehouse_id) REFERENCES warehouse(id),
+    CONSTRAINT uq_stock UNIQUE (product_id, warehouse_id)
+);
+-- =========================
+-- ORDERS & TRANSPORT
+-- =========================
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    order_date DATE NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    supplier_id INT NOT NULL,
+    created_by INT NOT NULL,
+    CONSTRAINT fk_orders_supplier
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    CONSTRAINT fk_orders_user
+        FOREIGN KEY (created_by) REFERENCES users(id)
+);
+CREATE TABLE order_items (
+    id SERIAL PRIMARY KEY,
+    quantity INT NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    CONSTRAINT fk_order_items_order
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_product
+        FOREIGN KEY (product_id) REFERENCES products(id)
+);
+CREATE TABLE transport (
+    id SERIAL PRIMARY KEY,
+    transport_company VARCHAR(150),
+    tracking_number VARCHAR(100),
+    delivery_date DATE,
+    status VARCHAR(50),
+    order_id INT NOT NULL UNIQUE,
+    CONSTRAINT fk_transport_order
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+-- =========================
+-- STOCK MOVEMENTS (AUDIT)
+-- =========================
+CREATE TABLE stock_movements (
+    id SERIAL PRIMARY KEY,
+    quantity INT NOT NULL,
+    movement_type VARCHAR(10) NOT NULL
+        CHECK (movement_type IN ('IN', 'OUT')),
+    movement_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    product_id INT NOT NULL,
+    user_id INT NOT NULL,
+    CONSTRAINT fk_stock_movements_product
+        FOREIGN KEY (product_id) REFERENCES products(id),
+    CONSTRAINT fk_stock_movements_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+);
